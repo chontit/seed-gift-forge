@@ -6,7 +6,7 @@
 
 **เปลี่ยนกระเป๋าบิตคอยน์ให้เป็น “การ์ดของขวัญ” ที่สวยงาม พร้อมพิมพ์ และเข้ารหัส — ทำงานออฟไลน์ 100% ในไฟล์ HTML ไฟล์เดียว**
 
-`v1.0.0` · Single-file · Offline-first · Zero network · AES-256 PDF · BIP39 / BIP32 / BIP84 · Tails OS ready
+`v1.0.1` · Single-file · Offline-first · Zero network · AES-256 PDF · BIP39 / BIP32 / BIP84 · Tails OS ready
 
 *Don't Trust, Verify.*
 
@@ -26,14 +26,31 @@
 
 ---
 
+## 🆕 What's new in v1.0.1
+
+อัปเดตด้านความปลอดภัยและความถูกต้อง หลังการตรวจสอบภายนอก **3 รอบ** — แก้ข้อที่อาจทำให้ Seed, Address และ QR บนกระดาษไม่สอดคล้องกัน ทุกข้อมี regression test ยืนยัน (22/22 + 19/19 + 11/11)
+
+- 🔴 ป้องกันการ Export ข้อมูลกระเป๋าเก่าเมื่อเปลี่ยน Seed/Passphrase
+- 🔴 QR Descriptor ใช้เส้นทางเดิมของกระเป๋า + ตรวจ Address round-trip
+- 🔴 แก้การอ่าน UR multipath ที่ทำให้ Address ผิด
+- 🔴 ตรวจเทียบกระเป๋า 5 มิติ (key · fingerprint · script · network · address)
+- 🟠 ล็อก Export เมื่อข้อมูลนำเข้าผิดหรือกำลังอ่าน / Self-test ไม่ผ่าน / ตรวจเทียบหรือตรวจไขว้ไม่ตรง
+- 🟠 ตรวจเทียบทั้ง receive และ change path · QR แบบ zpub เฉพาะเส้นทางมาตรฐาน · ปฏิเสธ multisig key
+- 🟠 Parser descriptor เข้มงวด · Entropy โหมด SHA ต้องครบไบต์ · รหัสผ่าน PDF เป็น ASCII
+- 🟡 เรียงแหล่ง Seed ใหม่: **กรอก Seed เอง (ค่าเริ่มต้น) → Real Entropy → สุ่มจากระบบ**
+
+รายละเอียด: [Release notes v1.0.1](RELEASE-NOTES-v1.0.1.md) · [AUDIT-RESPONSE.md](AUDIT-RESPONSE.md) · [CHANGELOG.md](CHANGELOG.md)
+
+---
+
 ## ✨ Features · ความสามารถ
 
 ### 01 · Seed Phrase (BIP39)
 | แหล่งที่มา | รายละเอียด |
 |---|---|
-| 🎲 **สุ่มจากระบบ** | `crypto.getRandomValues` (CSPRNG ของระบบปฏิบัติการ) สร้าง entropy ตรงตามจำนวนบิต — ไม่มี modulo bias |
+| ⌨ **กรอก Seed เอง** *(ค่าเริ่มต้น)* | ช่องกรอก 12–24 คำ พร้อม autocomplete จาก BIP39 wordlist และตรวจ checksum ทันที |
 | ✋ **Real Entropy** | โยนเหรียญ · HEX dice · ลูกเต๋า 6 หน้า · ไพ่ 52 ใบ → **SHA-256 × 1 รอบ** (ค่าเริ่มต้น) หรือ **Raw** (เฉพาะเหรียญ/HEX) |
-| ⌨ **กรอก Seed เอง** | ช่องกรอก 12–24 คำ พร้อม autocomplete จาก BIP39 wordlist และตรวจ checksum ทันที |
+| 🎲 **สุ่มจากระบบ** | `crypto.getRandomValues` (CSPRNG ของระบบปฏิบัติการ) สร้าง entropy ตรงตามจำนวนบิต — ไม่มี modulo bias |
 
 - เลือกได้ **12 / 15 / 18 / 21 / 24 คำ** (128–256 บิต)
 - **Hard gate:** entropy ไม่ครบ = ไม่สร้าง Seed · checksum ไม่ผ่าน = export ไม่ได้
@@ -43,7 +60,8 @@
 ### 02 · Passphrase & Wallet (BIP32 / BIP84)
 - ช่อง **BIP39 Passphrase** + ยืนยัน + ปุ่มแสดง/ซ่อน — **ใช้คำนวณเท่านั้น ไม่ถูกพิมพ์ลง PDF**
 - คำนวณอัตโนมัติ: **Master fingerprint · Derivation path `m/84'/0'/0'` · xpub · zpub · Output Descriptor (BIP380 checksum) · Address #1–#3**
-- **ตรวจเทียบกับกระเป๋าที่มีอยู่:** อัปโหลด QR/วาง descriptor ที่ export จาก Sparrow → ได้ผล `MATCH` / `NOT MATCH`
+- **ตรวจเทียบกับกระเป๋าที่มีอยู่:** อัปโหลด QR/วาง descriptor ที่ export จาก Sparrow → เทียบครบ 5 มิติ (Account key, Fingerprint, Script, Network, Address #1–#3) ผลเป็น `MATCH` / `ตรวจได้ไม่ครบ` / `NOT MATCH` — ถ้าไม่ใช่ `MATCH` ระบบล็อกการ export จนกว่าจะแก้หรือล้างช่องตรวจเทียบ
+- QR descriptor บนกระดาษสร้างจาก **เส้นทางเดิมของกระเป๋าทุกประการ** และตรวจซ้ำว่า Address ก่อน/หลังสร้าง QR ตรงกันก่อนพิมพ์
 - โหมด **นำเข้า** (ไม่กรอก Passphrase ในเครื่องนี้): รองรับ Output Descriptor (`wpkh` / `sh(wpkh)` / `pkh` / `tr`), **UR** (`crypto-output`, `output-descriptor`, `crypto-hdkey`, `crypto-account`), **BBQr**, xpub/ypub/zpub/tpub/vpub — คำนวณ address ได้ทั้ง Native SegWit, Taproot, Nested SegWit และ Legacy
 - ข้อมูลที่คำนวณไม่ได้ (เช่น fingerprint ของ zpub เปล่า) มีช่องกรอกเพิ่มแบบไม่บังคับ — ถ้าไม่กรอกจะไม่แสดงบน PDF
 
@@ -69,7 +87,7 @@
 - **ไฟล์เดียว ไม่มี dependency ภายนอกตอนรัน** — ฟอนต์ wordlist และไลบรารีฝังอยู่ในไฟล์
 - **CSP ล็อกเครือข่าย:** `default-src 'none'; connect-src 'none'` — เบราว์เซอร์จะบล็อกทุกการเชื่อมต่อออก
 - **ไม่ใช้ storage ใด ๆ** (ไม่มี localStorage / IndexedDB / cookie) · ล้างฟิลด์อัตโนมัติเมื่อปิดหน้า · ปุ่ม ⌫ ล้างทั้งหมด
-- **Self-test 10 รายการทุกครั้งที่เปิด** (SHA-256/512, RIPEMD-160, AES-256 FIPS-197, BIP39 vectors, BIP84, BIP86, descriptor checksum, wordlist hash, Thai shaper) — ไม่ผ่าน = ปุ่ม export ถูกล็อก
+- **Self-test 13 รายการทุกครั้งที่เปิด** (SHA-256/512, RIPEMD-160, AES-256 FIPS-197, BIP39 vectors, BIP84, BIP86, descriptor parser + round-trip, UR multipath keypath, entropy encoding, descriptor checksum, wordlist hash, Thai shaper) — ไม่ผ่านแม้รายการเดียว = ปุ่ม export ถูกล็อกถาวรจนกว่าจะเปิดไฟล์ใหม่
 - ถอด QR จากไฟล์ PNG ด้วยตัวถอดที่เขียนเอง **ไม่ผ่าน canvas** (Tor Browser บล็อกการอ่านพิกเซล canvas เพื่อกัน fingerprinting)
 
 ---
@@ -85,7 +103,7 @@
 1. บูต Tails → ที่ Welcome Screen เปิด **Offline Mode** (ปิดเครือข่าย)
 2. ตั้ง Tor Browser เป็นระดับความปลอดภัย **Standard** — ระดับ Safer/Safest ปิด JavaScript ทำให้เครื่องมือไม่ทำงาน
 3. เปิดไฟล์ด้วย Tor Browser (ลากไฟล์ใส่หน้าต่าง หรือ `file:///…/seed-gift-forge.html`) — ถ้าขึ้นว่า Tor ไม่พร้อม ให้กด *Start Tor Browser anyway*
-4. ตรวจแถบ **Preflight** ด้านบน: `OFFLINE` และ `SELF-TEST PASS 10/10` ต้องเป็นสีเขียว
+4. ตรวจแถบ **Preflight** ด้านบน: `OFFLINE` และ `SELF-TEST PASS 13/13` ต้องเป็นสีเขียว
 
 ---
 
@@ -94,9 +112,9 @@
 ### ขั้นที่ 01 — สร้าง Seed
 | ต้องการ | ทำอย่างไร |
 |---|---|
-| เร็วและปลอดภัย | เลือก **🎲 สุ่มจากระบบ** → เลือกจำนวนคำ → กด *สุ่ม Seed ใหม่* |
+| มี Seed อยู่แล้ว *(ค่าเริ่มต้น)* | **⌨ กรอก Seed เอง** → เลือกจำนวนคำ → พิมพ์ หรือวางทั้งชุดในช่องแรก |
 | สุ่มเองด้วยมือ | เลือก **✋ Real Entropy** → เลือกประเภท (เหรียญ/HEX/เต๋า 6/ไพ่) → กรอกผลจนตัวนับขึ้น `✓ ครบ` |
-| มี Seed อยู่แล้ว | เลือก **⌨ กรอก Seed เอง** → พิมพ์หรือวางทั้งชุดในช่องแรก |
+| เร็วและปลอดภัย | เลือก **🎲 สุ่มจากระบบ** → เลือกจำนวนคำ → กด *สุ่ม Seed ใหม่* |
 
 จำนวนครั้งที่ต้องทอย/โยนให้ครบตามจำนวนบิต:
 
@@ -106,6 +124,8 @@
 | 24 | 256 | 256 | 64 | 100 | 45 |
 
 <sub>* ไพ่: **จั่ว 1 ใบ → จด → ใส่คืน → สับใหม่** ทุกครั้ง (ใบซ้ำได้ตามปกติ) — ถ้าจั่วต่อเนื่องโดยไม่ใส่คืน เอนโทรปีจะน้อยกว่าที่นับ และทั้งสำรับมีเพียง ≈ 225.6 บิต ไม่พอสำหรับ 24 คำ</sub>
+
+> โหมด SHA-256 สำหรับเหรียญต้องป้อนจำนวนครั้งที่หารด้วย 8 ลงตัว และ HEX ต้องเป็นจำนวนหลักคู่ (ครบไบต์พอดี) — ป้องกันอินพุตต่างกันกลายเป็นไบต์ชุดเดียวกันก่อน hash
 
 แถบสถานะต้องขึ้น `✓ CHECKSUM VALID` ก่อนไปขั้นต่อไป
 
@@ -124,7 +144,7 @@
 ใส่ชื่อผู้มอบ ตำแหน่ง/ความสัมพันธ์ คำลงท้าย และเลือกรูปแบบลายเซ็น
 
 ### ขั้นที่ 05 — Export
-1. ตั้ง **รหัสผ่าน PDF** (≥ 8 ตัว แนะนำ ≥ 70 บิตตามมาตรวัด) — ใช้ตัวอักษร ASCII เพื่อให้เปิดได้ทุกโปรแกรม
+1. ตั้ง **รหัสผ่าน PDF** (≥ 8 ตัว แนะนำ ≥ 70 บิตตามมาตรวัด) — **ใช้ได้เฉพาะตัวอักษร ASCII** (a-z A-Z 0-9 สัญลักษณ์) เพื่อให้เปิดได้ทุกโปรแกรม
 2. กด **⬇ สร้าง PDF เข้ารหัส** → ไฟล์ถูกบันทึกในโฟลเดอร์ `Tor Browser` (อยู่ใน RAM ถ้าไม่ได้ใช้ Persistent Storage)
 3. เปิดด้วย Document Viewer ใส่รหัสผ่าน → สั่งพิมพ์ **Actual size / 100%** (ห้าม Fit to page)
 4. ลบไฟล์ PDF ทิ้งหลังพิมพ์ — **รหัสผ่านปกป้องไฟล์เท่านั้น กระดาษที่พิมพ์ออกมาไม่ได้เข้ารหัส**
@@ -176,7 +196,7 @@
 # 1) ตรวจ SHA-256
 sha256sum seed-gift-forge.html
 # ต้องได้:
-# 3fc8620c2796cae5ae6c797b24d21a7dad4666e8db79e3a9758899e44832e94e  seed-gift-forge.html
+# 1eef9946b04894a73c7860dc7d0b3dd48fbe1d28d1981737b7f24b3f402ae5c0  seed-gift-forge.html
 
 # 2) ตรวจลายเซ็น PGP
 gpg --import chollatis-bitcoiner-pubkey.asc
@@ -209,6 +229,9 @@ Fingerprint: `EEFC F3F0 928D 0199 BA7E 56EC 2DB5 4085 AB23 3A47`
 | PDF เข้ารหัส: เปิดด้วย **qpdf**, **poppler** (Document Viewer ใน Tails), **pdf.js** (Firefox/Tor Browser) | ✅ เปิดได้ด้วยรหัสถูก · ปฏิเสธรหัสผิด |
 | QR บน PDF ที่ render แล้ว → สแกนกลับ | ได้ค่าเดิม (descriptor + checksum / zpub) |
 | Thai shaping เทียบ HarfBuzz (3,573 cluster × 4 ฟอนต์) | ตรงกัน 100% |
+| External audit รอบ 1 (ChatGPT) — 8 ข้อ + ประเด็นรอง → แก้ทั้งหมด | **22 / 22 ผ่าน** |
+| External audit รอบ 2 — แกนคำนวณผ่าน 767 ข้อทดสอบของผู้ตรวจ · 8 ข้อด้านสถานะการนำเข้า → แก้ทั้งหมด | **19 / 19 ผ่าน** |
+| External audit รอบ 3 — 3 ข้อ + ข้อเสนอแนะ → แก้ทั้งหมด (ดู [`AUDIT-RESPONSE.md`](AUDIT-RESPONSE.md)) | **11 / 11 ผ่าน** |
 | UI end-to-end (headless) | ✅ ไม่มี error |
 
 > ⚠️ **ยังไม่ได้ทดสอบบน Tor Browser ใน Tails จริงในสภาพแวดล้อมของผู้พัฒนา** และยังไม่ได้ทดสอบการ import เข้า BlueWallet/Nunchuk จริง — ยินดีรับรายงานผลผ่าน Issues
